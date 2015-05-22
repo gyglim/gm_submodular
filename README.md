@@ -13,5 +13,3 @@ Learning: Mixture learing with SGD [Lin & Bilmes]
 * git clone
 * python setup.py --user
 * Requires: numpy, scipy
-
-### Contribution guidelines ###
