@@ -1,0 +1,491 @@
+'''
+<<<<<<< .mine
+This package contains code for submodular maximization and
+structured learning using stochastic gradient decent
+if you use this code, please cite:
+   M. Gygli, H. Grabner, L. Van Gool - Video Summarization by learning submodular mixtures of objectives. CVPR 2015
+
+=======
+This package contains code for feature extraction
+>>>>>>> .r107
+'''
+__author__ = "Michael Gygli"
+__maintainer__ = "Michael Gygli"
+__email__ = "gygli@vision.ee.ethz.ch"
+import numpy as np
+import random
+import logging
+import warnings
+<<<<<<< .mine
+import scipy.optimize
+import scipy.linalg
+import utils
+=======
+>>>>>>> .r107
+import time
+<<<<<<< .mine
+import gradient_functions
+logger = logging.getLogger('gm_submodular')
+logger.setLevel(logging.INFO)
+randomize=True
+skipAssertions=False
+=======
+import matplotlib.pyplot as plt
+import cv2
+import glob
+import os
+import leargist
+from PIL import Image
+from skimage.feature import hog
+import caffe.compute_deep_features as deep_feat
+from IPython.core.debugger import Tracer
+>>>>>>> .r107
+from IPython.core.debugger import Tracer
+
+<<<<<<< .mine
+
+class DataElement:
+    Y=[]
+    def getCosts(self):
+        raise NotImplementedError
+=======
+# Parameters
+histogram_num_bins=64
+image_endings=['jpg','jpeg','png','JPG','PNG','JPEG','JPG']
+>>>>>>> .r107
+
+logger = logging.getLogger('gm_features')
+logger.setLevel(logging.INFO)
+
+def getImages(image_path):
+    files=glob.glob('%s/*.*' % image_path)
+    images = filter(lambda x: x.endswith(tuple(image_endings)),files)
+    return images
+
+def getGist(img):
+    im=Image.fromarray(np.uint8(img))
+    return leargist.color_gist(im)
+
+def getGistOld(image_dir, output_dir, step=1,canSkip=True):
+     cmd='/home/gyglim/PhD/python/webpriors/webpriors/features/gist/run_extract_gist.sh /usr/pack/matlab-8.1r2013a-sd/ %s %s %d'
+
+     # Before actually running it, we check if maybe all features are there already
+     image_paths=getImages(image_dir)
+     image_paths.sort()
+     needsToRun=False
+     for idx in range(0,len(image_paths)):
+         im_p = image_paths[idx]
+         fileName=os.path.split(im_p)[1]
+         feature_file='%s/%s/%s.txt' % (output_dir,'getGist', fileName)
+         if canSkip and os.path.exists(feature_file):
+                 continue
+         else:
+             needsToRun=True
+             break
+
+     if needsToRun:
+        os.system(cmd % (image_dir,output_dir,step))
+
+def getCaffe5(img):
+    return deep_feat.getDeepFeatureByImage(img, 'pool5')
+
+def getCaffe6(img):
+    return deep_feat.getDeepFeatureByImage(img, 'fc6')
+
+def getCaffe7(img):
+    return deep_feat.getDeepFeatureByImage(img, 'fc7')
+
+def getCaffe8(img):
+    return deep_feat.getDeepFeatureByImage(img, 'fc8')
+
+def getHOG(img):
+    if len(img.shape)>2 and img.shape[2]>1:
+        img2=cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+    else:
+        img2=img
+    img2=cv2.resize(img2,(320,256))
+
+<<<<<<< .mine
+    ''' Init arrays to keep track of marginal benefits '''
+    marginal_benefits=np.ones(len(S.Y),np.float32)*np.Inf
+    mb_indices=np.arange(len(S.Y))
+    isUpToDate=np.zeros((len(S.Y),1))
+=======
+    descr= hog(img2,orientations=8, pixels_per_cell=(32, 32), cells_per_block=(1, 1))
+    return descr / np.sum(descr)
+>>>>>>> .r107
+
+def getColorhist(img):
+    hist=[]
+    if img.max()<=1:
+	maxVal=1
+    else:
+	maxVal=256
+    if len(img.shape)>2 and img.shape[2]==3:        
+        for i in range(0,3):
+            tH=cv2.calcHist([img], [i], None , [histogram_num_bins], [0, maxVal])
+            hist.append(tH/float(np.sum(tH)))
+    else:
+        tH=cv2.calcHist([img], [0], None , [histogram_num_bins], [0, maxVal])
+        tH=tH / float(np.sum(tH))
+        for i in range(0,3):
+            hist.append(tH) 
+    return np.array(hist).reshape(-1)
+
+
+def getHSVhist(img):
+    img2=cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+    return getColorhist(img2)
+
+
+def getLABhist(img):
+    img2=cv2.cvtColor(img,cv2.COLOR_BGR2LAB)
+    return getColorhist(img2)
+
+
+
+
+def load(filePath):
+    with open(filePath) as f:
+        d=f.readlines()
+        f2=np.array(d[0].split(),dtype='float')
+        if len(f2) <=1: # feature file seems to be in the row format
+            f2=np.array(map(float,d))
+    # FIXME make normalization a parameter
+    return f2 / f2.sum()
+
+
+
+def process_path(image_source,output_dir,descr_fun,canSkip=True,stepSize=1):
+    try:
+        target_fun=globals()[descr_fun]
+    except:
+        raise NotImplementedError('Feature function %s does not exist' % descr_fun)
+
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    if not os.path.exists('%s/%s' % (output_dir,descr_fun)):
+        os.mkdir('%s/%s' % (output_dir,descr_fun))
+
+<<<<<<< .mine
+def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,gradient_method='AdaGrad',GradientParams={'delta':0,'l2_regularizer': False, 'lambda_regularizer': 0, 'l1_constraint': False,'l2_constraint': False, 'l1_regularizer':False, 'l2_inequality':True,'l1_inequality':True}):
+    '''
+    This code implements algo 1 of "Learning Mixtures of Submodular Shells ..." - Lin & Bilmes UAI 2012
+    :param S: training data. S[t].Y:             indices of possible set elements
+                      S[t].y_gt:          indices selected in the ground truth solution
+                      S[t].budget:        The budget of for this example
+    :param submod_shells:    A cell containing submodular shell functions
+                      They need to be of the format submodular_function = shell_function(S[t])
+    :param   loss_function:    A submodular loss
+    :param   maxIter:          Maximal number of iterations
+    :return: learnt weights, weights per iteration
+    '''
+    if len(training_examples) ==0:
+        raise IOError('No training examples given')
+=======
+    idx=0
+    file_list=[]
+    img_paths=[]
+    while True:
+        im,img_name = image_source.getImage(idx)
+        if im is None:
+            break
+>>>>>>> .r107
+
+        feature_file='%s/%s/%s.txt' % (output_dir,descr_fun, img_name)
+        file_list.append(feature_file)
+        img_paths.append(img_name)
+        idx+=stepSize
+
+<<<<<<< .mine
+    ''' Initialize the weights '''
+    function_list,names=utils.instaciateFunctions(submod_shells,training_examples[0])
+    #Tracer()()
+    w_0=np.zeros(len(function_list),np.float)
+    #w_0=np.random.rand(len(function_list))
+=======
+        if canSkip and os.path.exists(feature_file):
+             continue
+        #Tracer()()
+        if len(im.shape)==3 and im.shape[2]>3:
+            im=im[:,:,0:3]
+        elif len(im.shape)==2:
+            im2=np.zeros((im.shape[0],im.shape[1],1))
+            im2[:,:,0]=im
+            im=im2
+>>>>>>> .r107
+
+        assert (im.shape[0]>0 and im.shape[1]>0)
+        descriptor=target_fun(im)
+
+<<<<<<< .mine
+    if len(function_list)<=1:
+        print('Just 1 function. No work for me here :-)\n')
+        return 1
+=======
+        np.savetxt(feature_file,descriptor,delimiter=' ',newline=' ')
+>>>>>>> .r107
+
+<<<<<<< .mine
+    ''' Start training '''
+    logger.info('Gradient method:   %s' % gradient_method)
+    if gradient_method=='AdaGrad':
+        logger.info('Use l1 constraint:  %s' % GradientParams['l1_constraint'])        
+        logger.info('Use l1 constraint:  %s' % GradientParams['l2_constraint'])
+        logger.info('Use l2 inequality:  %s' % GradientParams['l2_inequality'])
+        logger.info('Use l2 regularizer: %s' % GradientParams['l2_regularizer'])
+        logger.info('Use l2 regularizer: %s' % GradientParams['l1_regularizer'])        
+        logger.info('lambda regularizer: %s' % GradientParams['lambda_regularizer'])        
+        logger.info('Regularizer delta:  %s' % GradientParams['delta'])
+    elif gradient_method=='simple':
+        logger.info('regularizer lambda: %.3f' % learn_lambda)
+        
+    logger.debug('Training running...')
+=======
+    X=[]
+    for idx in range(0,len(file_list),stepSize):
+        try:
+            f2=load(file_list[idx])
+            X.append(f2)
+        except IOError:
+            warnings.warn('Could not load features for %s' % file_list[idx])
+            raise IOError
+    return X,img_paths
+>>>>>>> .r107
+
+<<<<<<< .mine
+    it=0
+    w=[]
+    exitTraining=False
+    if gradient_method=='AdaGrad':
+        G_t=0.01*np.ones((len(function_list),len(function_list)))
+        g_t=[]
+        
+    while exitTraining==False:
+        
+        start_time = time.time()
+=======
+def process_image_directory(image_dir,output_dir,descr_fun,canSkip=True,stepSize=1):
+    '''
+    :param image_dir: a directory containing image files
+    :param output_dir: where to store the features
+    :param descr_fun: what feature to compute
+    :param canSkip: should it skip the computation if the feature is already there?
+    :param stepSize: should images be skipped (e.g. if they are frames)
+    :return: (X,image_paths)
+    '''
+    image_paths=getImages(image_dir)
+    image_paths.sort()
+    imagesource=ImageSource(image_paths)
+    return process_path(imagesource,output_dir,descr_fun,canSkip,stepSize)
+>>>>>>> .r107
+
+def process_video(video_path,output_dir,descr_fun,canSkip=True,stepSize=1):
+    '''
+
+    :param video_path: a path to a video file
+    :param output_dir: where to store the features
+    :param descr_fun: what feature to compute
+    :param canSkip: should it skip the computation if the feature is already there?
+    :param stepSize: should images be skipped (e.g. if they are frames)
+    :return: (X,image_paths)
+    '''
+    framesource=FrameSource(video_path)
+    return process_path(framesource,output_dir,descr_fun,canSkip,stepSize)
+
+class FrameSource:
+    '''
+    Class that allows to read frames from a video
+    '''
+    def __init__(self,video_path):
+        self.frame_position=-1
+        self.frame=None
+        self.video_path=video_path
+        self.cap = cv2.VideoCapture(video_path)
+        if not self.cap.isOpened():
+            raise RuntimeError('File %s could not be opened' % video_path)
+
+<<<<<<< .mine
+        if np.mod(it,50)==0:
+            logger.info('Example %d of %d' % (it,T))
+        logger.debug('%s (budget: %d)' % (training_examples[t],training_examples[t].budget))
+        logger.debug(training_examples[t].y_gt)
+=======
+    def getImage(self,idx):
+        if idx<self.frame_position:
+            raise IndexError('Error, can only access frames in increasing order')
+>>>>>>> .r107
+
+        while idx>self.frame_position:
+            hasFrame, self.frame = self.cap.read()
+            if hasFrame==False:
+                self.cap.release()
+                return None,None
+            self.frame_position+=1
+        return self.frame, 'frame_%d' % idx
+
+class ImageSource:
+    '''
+    Class that allows to read images from an image directory
+    '''
+    def __init__(self,im_list):
+        self.image_list=im_list
+    def getImage(self,idx):
+        if idx<len(self.image_list):
+            return plt.imread(self.image_paths[idx]),self.image_paths[idx]
+        else:
+            return None,None
+
+
+<<<<<<< .mine
+        ''' Subgradient '''        
+        if gradient_method=='simple':
+            if GradientParams['l1_inequality']:
+                score_t  = utils.evalSubFun(function_list,y_t,False)
+                score_gt = utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
+                g_t = score_t - score_gt
+                #g_t = score_t/score_t.sum() - score_gt/score_gt.sum()
+                #if g_t.sum()>0:
+                #    g_t/=g_t.sum()
+            else:
+                g_t = learn_lambda*w[it] + utils.evalSubFun(function_list,y_t,False)
+                g_t= g_t - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
+            logger.debug('Gradient:')
+            logger.debug(g_t)
+    
+            ''' Update weights '''
+            nu = 2.0 / float(learn_lambda*(it+1))
+            logger.debug('Nu: %.3f' % nu)
+            w[it]=w[it]-nu*g_t;
+    
+            ''' Project to feasible set'''
+            if GradientParams['l1_inequality']:# and w[it].sum()>1:
+                obj=lambda w_t: np.inner(w_t-w[it],w_t-w[it])
+                bnds=[]
+                cons=[]
+                for idx in range(0,len(function_list)):
+                    bnds.append((0, None))
+                    #cons.append({'type': 'ineq','fun' : lambda x: x[idx]})
+                cons.append({'type': 'ineq','fun' : lambda x: 1-x.sum()})
+                #cons.append({'type': 'eq','fun' : lambda x: 1.0-np.sqrt(np.abs(x)).sum()})
+                cons=tuple(cons)
+                bnds=tuple(bnds)            
+                if it==0:
+                    res=scipy.optimize.minimize(obj,w_0,constraints=cons,bounds=bnds)#, options={'maxiter':10**3})    
+                else:
+                    res=scipy.optimize.minimize(obj,w[it-1],constraints=cons,bounds=bnds)#, options={'maxiter':10**3})                        
+                #Tracer()()
+                assert (res.x<-10**-5).any()==False
+                w[it]=res.x
+                if np.sum(w[it])>0:
+                    w[it]=w[it]/np.sum(w[it])
+                if res.success==False:                
+                    logger.warn('Iteration %d: SIMPLE: Failed to find constraint solution on w' % it)
+                    w[it][w[it]<0]=0
+                    if w[it].sum()>0:
+                        w[it]=w[it]/w[it].sum()
+            else:
+                w[it][w[it]<0]=0
+                w[it]=w[it]/np.sum(w[it])
+                w[it][np.isnan(w[it])]=0
+        elif gradient_method=='AdaGrad':
+            nu = 2.0 / float(learn_lambda*(it+1))
+            
+            ''' Compute the gradient '''
+            #g_t.append(utils.evalSubFun(function_list,list(training_examples[t].y_gt),True) - utils.evalSubFun(function_list,y_t,False))
+            g_t.append(utils.evalSubFun(function_list,y_t,False) - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True))
+            #g_t.append(learn_lambda*w[it] + utils.evalSubFun(function_list,y_t,False) - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True))
+            
+            ''' Update the gradient matrix '''
+            G_t+=np.outer(g_t[it],g_t[it])
+            S_t=scipy.linalg.sqrtm(G_t)
+            S_t=S_t.real
+            H_t=GradientParams['delta']*np.eye(len(S_t)) + S_t
+            
+            ''' find update (brute-force for now) '''       
+            if GradientParams['l2_regularizer']:
+                obj=lambda w_t: nu*np.inner(np.array(g_t).mean(axis=0), w_t) +GradientParams['lambda_regularizer']*nu*np.sqrt(np.inner(w_t,w_t)) + 1/(2*(it+1))*np.inner(np.array(w_t),np.inner(H_t,w_t))            
+            elif GradientParams['l1_regularizer']:
+                obj=lambda w_t: nu*np.inner(np.array(g_t).mean(axis=0), w_t) +GradientParams['lambda_regularizer']*nu*w_t.sum()+ 1/(2*(it+1))*np.inner(np.array(w_t),np.inner(H_t,w_t))            
+            else:
+                obj=lambda w_t: nu*np.inner(np.array(g_t).mean(axis=0), w_t) + 1/(2*(it+1))*np.inner(np.array(w_t),np.inner(H_t,w_t))            
+            cons=[]
+            bnds=[]
+            for idx in range(0,len(function_list)):
+                #cons.append({'type': 'ineq','fun' : lambda x: x[idx]})
+                bnds.append((0, None))
+            if GradientParams['l1_constraint']:
+                cons.append({'type': 'eq','fun' : lambda x: x.sum()-1})
+            if GradientParams['l2_constraint']:
+                cons.append({'type': 'eq','fun' : lambda x: np.sqrt(np.inner(x,x))-1})
+            if GradientParams['l2_inequality']:
+                cons.append({'type': 'ineq','fun' : lambda x: 1-np.sqrt(np.inner(x,x))})
+            if GradientParams['l1_inequality']:
+                cons.append({'type': 'ineq','fun' : lambda x: 1-x.sum()})
+=======
+>>>>>>> .r107
+
+<<<<<<< .mine
+            cons=tuple(cons)    
+            bnds=tuple(bnds)
+            
+            
+            res=scipy.optimize.minimize(obj,w[it],constraints=cons,bounds=bnds)#, options={'maxiter':10**3})    
+            #Tracer()()
+            w_t=res.x
+            if GradientParams['l1_constraint'] == False and w_t.sum() > 0:
+                w_t/=w_t.sum()
+            if res.success==False:                
+                logger.warn('Iteration %d: Failed to find constraint solution on w' % it)
+                #
+                w_t[w_t<0]=0
+                if w_t.sum()>0:
+                    w_t=w_t/w_t.sum()
+            #Tracer()()
+        else:
+            raise UserWarning('Method %s is not implemented!' % gradient_method)
+                        
+
+            
+            #w_t=np.array(w[it]).transpose()
+            #w_t[w_t<0]=0
+            #Psi_t=0.5*np.inner(np.array(w_t).transpose(),np.inner(H_t,w_t))
+            
+            ''' update the weights '''
+            # FIXME is this projection correct?
+            #w[it]=nu*map(w_t,g_t-1/(it+1)*Psi_t# FIXME This is assuming we can directly find the currect w_t
+            #assert((w[it]<0).any())
+            #w[it][w[it]<0]=0
+            w[it]=w[it]/np.sum(w[it])
+            w[it][np.isnan(w[it])]=0
+
+
+            
+
+        logger.debug('w[it]:\n')
+        logger.debug(w[it])
+        it=it+1
+        logger.debug(it)
+        if it>=len(training_examples)*maxIter:
+            logger.warn('Break without convergence\n')
+            exitTraining=True
+        logger.debug("--- %.1f seconds ---" % (time.time() - start_time))
+
+    if gradient_method=='simple':
+        w_res = np.asarray(w).mean(axis=0)
+        #w_res = np.median(np.asarray(w),axis=0)
+        w_res/=w_res.sum()
+    elif gradient_method=='AdaGrad':
+        # FIXME correct?
+        #w_res = np.asarray(w).mean(axis=0)
+        w_res=w_t
+
+    logger.info('----------------------------\n')
+    logger.info('Weights:\n')
+    for w_idx in range(len(w_res)):
+        logger.info(' %20s: %2.3f%%' % (names[w_idx],round(10000/sum(w_res)*w_res[w_idx]) / 100))
+    logger.info('----------------------------\n')
+
+    return w_res,w=======
+>>>>>>> .r107
