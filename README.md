@@ -10,6 +10,9 @@ Learning: Mixture learing with SGD [Lin & Bilmes]
 
 ### How do I get set up? ###
 
-* git clone
-* python setup.py --user
 * Requires: numpy, scipy
+* git clone https://bitbucket.org/gyglim/gm_submodular
+* python setup.py --user
+
+### Setting started ###
+* See http://people.ee.ethz.ch/~gyglim/work_public/index.html
