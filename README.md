@@ -15,4 +15,4 @@ Learning: Mixture learing with SGD [Lin & Bilmes]
 * python setup.py --user
 
 ### Setting started ###
-* See [[http://people.ee.ethz.ch/~gyglim/work_public/index.html]]
+* See http://people.ee.ethz.ch/~gyglim/work_public/index.html
