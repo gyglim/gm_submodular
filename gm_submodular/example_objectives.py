@@ -8,6 +8,18 @@ __email__ = "gygli@vision.ee.ethz.ch"
 
 import numpy as np
 from IPython.core.debugger import Tracer
+
+
+def intersect_complement_loss(S,selection):
+    '''
+    :param S: A DataElement
+    :param selection: a list of selected indices
+    :return: the loss (in  [0; 1])
+    '''
+
+    #set intersection is much faster that numpy intersect1d
+    return 1-len(set(S.y_gt).intersection(selection))/float(len(S.y_gt))
+
 def representativeness_shell(S):
     '''
         Representativeness shell Eq. (8)

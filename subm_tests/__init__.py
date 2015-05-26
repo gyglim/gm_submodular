@@ -15,6 +15,8 @@ import sys
 import pystruct.learners
 import subm_tests.test_pystruct as tp
 
+num_iter=100
+
 def representativeness_shell_x(S):
     '''
         Representativeness shell Eq. (8)
@@ -36,15 +38,6 @@ def representativeness_shell_y(S):
     return (lambda X: (1 - ex.kmedoid_loss(X,tempDMat,float(norm))))
 
 
-def intersect_complement_loss(S,selection):
-    '''
-    :param S: A DataElement
-    :param selection: a list of selected indices
-    :return: the loss (in  [0; 1])
-    '''
-
-    #set intersection is much faster that numpy intersect1d
-    return 1-len(set(S.y_gt).intersection(selection))/float(len(S.y_gt))
 
 def plotExample(S,objectives,weights, title):
     '''
@@ -79,7 +72,7 @@ class ClusterData(gm_submodular.DataElement):
         Derives from gm_submodular.DataElement
     '''
     def __init__(self):
-        num_points=100
+        num_points=25
         x=np.random.rand(num_points/5,2)
         self.cluster_assignment=np.zeros(x.shape[0])
         for i in range(0,4):
@@ -105,7 +98,7 @@ class ClusterData(gm_submodular.DataElement):
         return dist.squareform(self.dist_y)
 
 
-def createTrainingData(weights=[1,0],num_noise_obj=0, gt_variability=0,num_datasets=50):
+def createTrainingData(weights=[1,0],num_noise_obj=0, gt_variability=0,num_datasets=25):
     shells=[ex.representativeness_shell,ex.earliness_shell]
     weights_gt=list(weights)
     for i in range(num_noise_obj):
@@ -131,17 +124,17 @@ def getError(weights=[1,0],num_noise_obj=0, gt_variability=0, num_runs=100):
     for runNr in range(0,num_runs):
         training_examples,shells,weights_gt = createTrainingData(np.array(weights).copy(),num_noise_obj, gt_variability)
         m=tp.SubmodularSSVM(shells)
-        sg_ssvm=pystruct.learners.SubgradientSSVM(m,max_iter=3,shuffle=True,averaging='linear')
+        sg_ssvm=pystruct.learners.SubgradientSSVM(m,max_iter=num_iter,shuffle=True,averaging='linear')
         res_ps=sg_ssvm.fit(training_examples,map(lambda x: x.y_gt,training_examples))
 
         weights_simple,dummy = gm_submodular.learnSubmodularMixture(training_examples,
                                                                     shells,
-                                                                    intersect_complement_loss,
-                                                                    3, use_l1_inequality=False)
+                                                                    ex.intersect_complement_loss,
+                                                                    num_iter, use_l1_inequality=False)
         weights_l1,dummy = gm_submodular.learnSubmodularMixture(training_examples,
                                                                 shells,
-                                                                intersect_complement_loss,
-                                                                3, use_l1_inequality=True)
+                                                                ex.intersect_complement_loss,
+                                                                num_iter, use_l1_inequality=True)
         weights_pystruct=np.array(res_ps.w,np.float32)
         weights_pystruct[weights_pystruct<0]=0
         weights_pystruct/=weights_pystruct.sum()
@@ -253,8 +246,8 @@ def get_multiobjective_plot(num_runs=100,num_noise_obj=1):
     plt.hold(True)
     plt.errorbar(obj_ratio*100,np.array(lin_error)[:,0]*100,yerr=np.array(lin_error)[:,1]*100,color='red',linewidth=3)
     plt.hold(True)
-    plt.errorbar(obj_ratio*100,np.array(pystruct_error)[:,0]*100,yerr=np.array(pystruct_error)[:,1]*100,color='green',linewidth=3)
-    plt.title('Fidelity regarding different target weight',fontsize=22)
+    #plt.errorbar(obj_ratio*100,np.array(pystruct_error)[:,0]*100,yerr=np.array(pystruct_error)[:,1]*100,color='green',linewidth=3)
+    #plt.title('Fidelity regarding different target weight',fontsize=22)
     plt.legend(['l1 inequality (ours)','Lin et al.','pystruct'],fontsize=18)
     plt.xlabel('relative weight importance',fontsize=18)
     plt.ylabel('Deviations from the ground truth weights [%]',fontsize=18)

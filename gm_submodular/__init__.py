@@ -19,7 +19,7 @@ import scipy.optimize
 import scipy.linalg
 import utils
 import time
-import gradient_functions
+#import gradient_functions
 logger = logging.getLogger('gm_submodular')
 logger.setLevel(logging.INFO)
 skipAssertions=False
@@ -156,7 +156,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
         i+=1
 
 
-def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_l1_inequality=False):
+def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_l1_inequality=False,momentum=0.1):
     '''
     This code implements algorithm 1 of [1]
     :param S: training data. S[t].Y:             indices of possible set elements
@@ -203,6 +203,8 @@ def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_
     w=[]
     exitTraining=False
 
+    g_t_old=np.zeros(len(function_list))
+
     while exitTraining==False:
         
         start_time = time.time()
@@ -237,6 +239,8 @@ def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_
             score_t  = utils.evalSubFun(function_list,y_t,False)
             score_gt = utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
             g_t = score_t - score_gt
+            g_t = ((1 - momentum) * g_t + momentum * g_t_old)
+            g_t_old=g_t
         else: # Lin et al. use an l2 regularized formulation, and have thus a different gradient
             g_t = learn_lambda*w[it] + utils.evalSubFun(function_list,y_t,False)
             g_t= g_t - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
