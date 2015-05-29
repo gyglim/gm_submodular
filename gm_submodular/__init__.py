@@ -75,7 +75,7 @@ def modular_approximation(loss,pi,S):
         W.append(S.Y[pi[i]])
         scores[pi[i]]=loss(S, W) - loss(S, W_old)
         W_old = W
-    return lambda S, X: scores[X].sum()+loss(S,[])
+    return lambda S, X: scores[X].sum()#+loss(S,[])
 
 def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-100):
     '''
@@ -110,7 +110,7 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-1
         #Solve submodular minimization using the previous solution A to approximate h
         A_old=A
         A,val=leskovec_maximize(S,w,submod_fun,budget,loss_fun=h)
-        logger.info('Selected %d elements: [%s]' % (len(A),' '.join(map(lambda x: str(x),A))))
+        logger.debug('Selected %d elements: [%s]' % (len(A),' '.join(map(lambda x: str(x),A))))
         assert (len(A) <= S.budget)
 
         # update pi
@@ -126,6 +126,7 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-1
         else:
             improvementFound=False
     logger.debug('Took %d iteations.' % iter)
+    assert (len(A_old) == S.budget)
     return A_old,maxVal
 
 

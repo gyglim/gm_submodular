@@ -18,7 +18,7 @@ def intersect_complement_loss(S,selection):
     '''
 
     #set intersection is much faster that numpy intersect1d
-    return 1-len(set(S.y_gt).intersection(selection))/float(len(S.y_gt))
+    return (len(selection)-len(set(S.y_gt).intersection(selection)))/float(len(S.y_gt))
 
 def representativeness_shell(S):
     '''
