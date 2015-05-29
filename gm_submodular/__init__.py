@@ -77,7 +77,7 @@ def modular_approximation(loss,pi,S):
         W_old = W
     return lambda S, X: scores[X].sum()+loss(S,[])
 
-def submodular_supermodular_maximization(S,w,submod_fun,budget,loss):
+def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-10):
     '''
     Does submodular maximization with a supermodular loss. Thus
     Optmizes it using a submodular-supermodular procedure.
@@ -99,9 +99,7 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss):
     maxVal = -np.inf
     A = []
     A_old=[]
-    
-    # FIXME: make parameter
-    delta=10**-1
+
     iter=0
     while improvementFound:
         iter+=1
@@ -127,6 +125,7 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss):
             improvementFound=True
         else:
             improvementFound=False
+    logger.info('Took %d iteations.' % iter)
     return A_old,maxVal
 
 
