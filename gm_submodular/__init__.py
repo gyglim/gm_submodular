@@ -6,7 +6,8 @@ if you use this code, please cite Gygli et al. [3]
     [1] Lin, H. & Bilmes, J. Learning mixtures of submodular shells with application to document summarization. UAI 2012
     [2] Leskovec, J., Krause, A., Guestrin, C., Faloutsos, C., VanBriesen, J., & Glance, N. Cost-effective outbreak detection in networks. ACM SIGKDD 2007
     [3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
-    [4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions. Optimization Techniques 1978
+    [4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions. Optimization Techniques. 1978
+    [5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure learning. UAI. 2005
 '''
 __author__ = "Michael Gygli"
 __maintainer__ = "Michael Gygli"
@@ -23,6 +24,8 @@ import time
 logger = logging.getLogger('gm_submodular')
 logger.setLevel(logging.INFO)
 skipAssertions=False
+from IPython.core.debugger import Tracer
+
 
 
 class DataElement:
@@ -56,6 +59,75 @@ def leskovec_maximize(S,w,submod_fun,budget,loss_fun=None):
             return y_cost,score_cost
 
     return y,score
+
+def modular_approximation(loss,pi,S):
+    '''
+    Computes a modular approximation of a loss function. Algorithm based on [5]
+    :param loss: the supermodular loss function we want to approximate
+    :param pi: an ordering on S.Y
+    :param S: DataElement. needs S.Y
+    :return:
+    '''
+    W_old=[]
+    scores=np.zeros(len(S.Y))
+    for i in range(1,len(S.Y)):
+        W = W_old[:]
+        W.append(S.Y[pi[i]])
+        scores[pi[i]]=loss(S, W) - loss(S, W_old)
+        W_old = W
+    return lambda S, X: scores[X].sum()+loss(S,[])
+
+def submodular_supermodular_maximization(S,w,submod_fun,budget,loss):
+    '''
+    Does submodular maximization with a supermodular loss. Thus
+    Optmizes it using a submodular-supermodular procedure.
+    Algorithm based on [5].
+    Adapted such that the supermodular loss is apprixmated rather then the submodular objectives
+
+    :param S: DataElement
+    :param w: objective weights
+    :param submod_fun: objective functions
+    :param budget: budget
+    :param loss: the supermodular loss function
+    :return: list of selected indices, (approximate) score
+    '''
+    #FIXME: recheck for correctness. Is the modular approximation really an upper bound on the correct
+    # submodular loss?
+    n = 0
+    pi = S.Y[np.random.permutation(len(S.Y))]
+    improvementFound = True
+    maxVal = -np.inf
+    A = []
+    A_old=[]
+    
+    # FIXME: make parameter
+    delta=10**-1
+    iter=0
+    while improvementFound:
+        iter+=1
+        # Get a modular approximation of the loss at pi
+        #logger.info('Get modular approximation of the loss')
+        h = modular_approximation(loss,pi,S)
+
+        #Solve submodular minimization using the previous solution A to approximate h
+        A_old=A
+        A,val=leskovec_maximize(S,w,submod_fun,budget,loss_fun=h)
+        logger.info('Selected %d elements: [%s]' % (len(A),' '.join(map(lambda x: str(x),A))))
+        assert (len(A) <= S.budget)
+
+        # update pi
+        D = np.setdiff1d(S.Y,A)
+        pi = A[:]
+        pi.extend(D[np.random.permutation(len(D))])
+        n += 1
+
+        if val - delta > maxVal:
+            logger.info('Have improvement: From %.3f to %.3f ' % (maxVal,val))
+            maxVal=val
+            improvementFound=True
+        else:
+            improvementFound=False
+    return A_old,maxVal
 
 
 
@@ -119,7 +191,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             else:
                 mb_indices=(-marginal_benefits).argsort(axis=0)
 
-            if marginal_benefits[-1]<0:
+            if marginal_benefits[-1]< -10**-5:
                 warnings.warn('Non monotonic objective')
 
 
@@ -156,21 +228,24 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
         i+=1
 
 
-def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_l1_inequality=False,momentum=0.1):
+def learnSubmodularMixture(training_data,submod_shells,loss_fun,maxIter,use_l1_inequality=False,momentum=0, loss_supermodular=False):
     '''
     This code implements algorithm 1 of [1]
-    :param S: training data. S[t].Y:             indices of possible set elements
+    :param training_data: training data. S[t].Y:             indices of possible set elements
                       S[t].y_gt:          indices selected in the ground truth solution
                       S[t].budget:        The budget of for this example
     :param submod_shells:    A cell containing submodular shell functions
                       They need to be of the format submodular_function = shell_function(S[t])
-    :param   loss_function:    A submodular loss
+    :param   loss_function:    A (submodular) loss
     :param   maxIter:          Maximal number of iterations
+    :param   loss_supermodular: True, if the loss is supermodular. Then, [5] is used for loss-augmented inference
     :return: learnt weights, weights per iteration
     '''
-    if len(training_examples) ==0:
-        raise IOError('No training examples given')
 
+    if len(training_data) ==0:
+        raise IOError('No training examples given')
+    # Make a copy of the training samples so that is doesn't shuffle the input list
+    training_examples=training_data[:]
 
     ''' Initialize the weights '''
     function_list,names=utils.instaciateFunctions(submod_shells,training_examples[0])
@@ -219,6 +294,8 @@ def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_
         ''' Before each iteration: shuffle training examples '''
         if t==0:
             logger.debug('Suffle training examples')
+
+            training_examples=training_examples
             random.shuffle(training_examples)
 
         if np.mod(it,50)==0:
@@ -231,7 +308,10 @@ def learnSubmodularMixture(training_examples,submod_shells,loss_fun,maxIter,use_
 
         ''' Approximate loss augmented inference
         (this is equivalent to a greedy submodular optimization) '''
-        y_t,score = leskovec_maximize(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
+        if loss_supermodular:
+            y_t,score = submodular_supermodular_maximization(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
+        else:
+            y_t,score = leskovec_maximize(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
 
 
         ''' Subgradient '''        
