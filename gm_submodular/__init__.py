@@ -26,7 +26,6 @@ logger.setLevel(logging.INFO)
 skipAssertions=False
 
 
-
 class DataElement:
     Y=[]
     def getCosts(self):
@@ -230,7 +229,8 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
         i+=1
 
 
-def learnSubmodularMixture(training_data,submod_shells,loss_fun,maxIter,use_l1_inequality=False,momentum=0, loss_supermodular=False):
+def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, use_l1_inequality=False,
+                           momentum=0, loss_supermodular=False):
     '''
     This code implements algorithm 1 of [1]
     :param training_data: training data. S[t].Y:             indices of possible set elements
@@ -382,7 +382,7 @@ def learnSubmodularMixture(training_data,submod_shells,loss_fun,maxIter,use_l1_i
 
     ''' Return the averaged weights (See [1] algorithm 1) '''
     w_res = np.asarray(w).mean(axis=0)
-    w_res/=w_res.sum()
+    w_res/=np.abs(w_res).sum()
 
     logger.info('----------------------------\n')
     logger.info('Weights:\n')
