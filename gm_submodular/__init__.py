@@ -367,7 +367,7 @@ def learnSubmodularMixture(training_data,submod_shells,loss_fun,maxIter,use_l1_i
         else: # projection of [1]
             ''' update the weights accoring to  [1] algorithm 1'''
             w[it][w[it]<0]=0
-            w[it]=w[it]/np.sum(w[it])
+            w[it]=w[it]/np.sum(np.abs(w[it]))
             w[it][np.isnan(w[it])]=0
             
 
