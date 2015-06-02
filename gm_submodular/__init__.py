@@ -12,6 +12,7 @@ if you use this code, please cite Gygli et al. [3]
 __author__ = "Michael Gygli"
 __maintainer__ = "Michael Gygli"
 __email__ = "gygli@vision.ee.ethz.ch"
+__version__="0.1"
 import numpy as np
 import random
 import logging
@@ -20,11 +21,9 @@ import scipy.optimize
 import scipy.linalg
 import utils
 import time
-#import gradient_functions
 logger = logging.getLogger('gm_submodular')
 logger.setLevel(logging.INFO)
 skipAssertions=False
-from IPython.core.debugger import Tracer
 
 
 
@@ -152,18 +151,21 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
         type='CB'
 
     ''' Init arrays to keep track of marginal benefits '''
-    marginal_benefits=np.ones(len(S.Y),np.float32)*np.Inf
-    mb_indices=np.arange(len(S.Y))
-    isUpToDate=np.zeros((len(S.Y),1))
+    marginal_benefits = np.ones(len(S.Y),np.float32)*np.Inf
+    mb_indices = np.arange(len(S.Y))
+    isUpToDate = np.zeros((len(S.Y),1))
 
-    costs=S.getCosts()
+    costs = S.getCosts()
 
 
-    currCost=0.0
-    currScore=0.0
-    i=0
+    currCost  = 0.0
+    currScore = 0.0
+    i = 0
 
     if loss_fun is None:
+        #FIXME: this is not actually a zero loss, but just a loss that is the same for all elements
+        # This is a hack to ensure that, in case all weights w are zero, a non empty set is selected
+        # i.e., just a random subset of size S.budget
         loss_fun=utils.zero_loss
 
     ''' Select as long as we are within budget and have elements to select '''
@@ -271,8 +273,6 @@ def learnSubmodularMixture(training_data,submod_shells,loss_fun,maxIter,use_l1_i
 
     ''' Start training '''
     logger.info('regularizer lambda: %.3f' % learn_lambda)
-        
-    logger.debug('Training running...')
 
     it=0
     w=[]
@@ -343,7 +343,7 @@ def learnSubmodularMixture(training_data,submod_shells,loss_fun,maxIter,use_l1_i
                 bnds.append((0, None))
 
             # Define the l1-ball inequality
-            cons.append({'type': 'ineq','fun' : lambda x: 1-x.sum()})
+            cons.append({'type': 'ineq','fun' : lambda x: 1-np.abs(x).sum()})
             cons=tuple(cons)
             bnds=tuple(bnds)
 
