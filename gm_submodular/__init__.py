@@ -352,18 +352,19 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
                 res=scipy.optimize.minimize(obj,w_0,constraints=cons,bounds=bnds)#, options={'maxiter':10**3})
             else:
                 res=scipy.optimize.minimize(obj,w[it-1],constraints=cons,bounds=bnds)#, options={'maxiter':10**3})
-            assert (res.x<-10**-5).any()==False
-            w[it]=res.x
+            if res.success:
+                assert (res.x<-10**-5).any()==False
+                w[it]=res.x
 
-            # Note: We need to re-normalize the weights to sum to one, in order to give each SGD step the same weight
-            if np.sum(w[it])>0:
-                w[it]=w[it]/np.sum(w[it])
-
-            if res.success==False:
+                # Note: We need to re-normalize the weights to sum to one, in order to give each SGD step the same weight
+                if np.sum(w[it])>0:
+                    w[it]=w[it]/np.sum(w[it])
+            else:
                 logger.error('Iteration %d: l1: Failed to find constraint solution on w' % it)
                 w[it][w[it]<0]=0
                 if w[it].sum()>0:
                     w[it]=w[it]/w[it].sum()
+                    
         else: # projection of [1]
             ''' update the weights accoring to  [1] algorithm 1'''
             w[it][w[it]<0]=0
