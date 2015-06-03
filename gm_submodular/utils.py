@@ -1,5 +1,6 @@
 import numpy as np
 import time
+
 def evalSubFun(submod_fun,y,isGt,w=None):
     res=np.zeros(len(submod_fun))
     for idx in range(len(submod_fun)):
@@ -23,10 +24,12 @@ def instaciateFunctions(submod_fun,s):
             names=res[1]
         else:
             objective=res
-            names=None
+            names=submod_fun[idx].__name__
             
         if type(objective) is list:            
             fun_list.extend(objective)
+            if names is not list:
+                names=map(lambda x: '%s-%d' % (names,x),np.arange(len(objective)))
             name_list.extend(names)
         else:
             fun_list.append(objective)

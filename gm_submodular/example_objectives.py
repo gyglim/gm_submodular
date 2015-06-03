@@ -56,7 +56,7 @@ def random_shell(S):
     '''
     #np.random.seed(0)
     rand_scores=np.random.rand(len(S.Y))
-    return (lambda X: np.sum(rand_scores[X]) /  S.budget)
+    return (lambda X: np.sum(rand_scores[X]) /  float(S.budget))
 
 
 def x_coord_shell(S):

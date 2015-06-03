@@ -21,6 +21,7 @@ import scipy.optimize
 import scipy.linalg
 import utils
 import time
+from IPython.core.debugger import Tracer
 logger = logging.getLogger('gm_submodular')
 logger.setLevel(logging.INFO)
 skipAssertions=False
@@ -47,16 +48,20 @@ def leskovec_maximize(S,w,submod_fun,budget,loss_fun=None):
     '''
 
     logger.debug('Uniform cost greedy')
-    y,score=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,False)
-
+    y,score,minoux_bound=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,False)
     if len(np.unique(S.getCosts()))>1:
         logger.debug('Cost benefit greedy')
 
-        y_cost,score_cost=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,True)
+        y_cost,score_cost,minoux_bound_cost=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,True)
         if score_cost>score:
-            return y_cost,score_cost
+            logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound_cost))))
+            return y_cost,score_cost,minoux_bound_cost
+        else:
+            logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound))))
+    else:
+        logger.debug('Score: %.3f (%.1f%% of the Minoux bound; 63%% of Nemhauser bound)' % (score, 100*(score / float(minoux_bound))))
 
-    return y,score
+    return y,score,minoux_bound
 
 def modular_approximation(loss,pi,S):
     '''
@@ -107,7 +112,7 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-1
 
         #Solve submodular minimization using the previous solution A to approximate h
         A_old=A
-        A,val=leskovec_maximize(S,w,submod_fun,budget,loss_fun=h)
+        A,val,online_bound=leskovec_maximize(S,w,submod_fun,budget,loss_fun=h)
         logger.debug('Selected %d elements: [%s]' % (len(A),' '.join(map(lambda x: str(x),A))))
         assert (len(A) <= S.budget)
 
@@ -181,7 +186,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             #if verbose:
             #    print('%d has gain %.3f (before: %.3f)\n' % (mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
             if not skipAssertions:
-                assert marginal_benefits[mb_indices[0]]-t_marg > -10**-3, ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
+                assert marginal_benefits[mb_indices[0]]-t_marg > -10**-5, ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
             marginal_benefits[mb_indices[0]]=t_marg
             isUpToDate[mb_indices[0]]=True
 
@@ -194,6 +199,12 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
 
             if marginal_benefits[-1]< -10**-5:
                 warnings.warn('Non monotonic objective')
+
+        # Compute Minoux bound [4]
+        if i==0:
+            best_sel_indices=np.where(costs[mb_indices].cumsum()<=budget)[0]
+            #Tracer()()
+            minoux_bound = marginal_benefits[mb_indices][best_sel_indices].sum()
 
 
         ''' Select the highest scoring element '''
@@ -212,7 +223,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
         else:
             logger.debug(' If the best element is zero, we are done ')
             logger.debug(sel_indices)
-            return sel_indices,currScore
+            return sel_indices,currScore,minoux_bound
 
         ''' Check if we still have budget to select something '''
         for elIdx in range(0,len(S.Y)):
@@ -224,7 +235,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             logger.debug('no elements left to select. Done')
             logger.debug('Selected %d elements with a cost of %.1f (max: %.1f)' % (len(sel_indices),currCost,budget))
             logger.debug(sel_indices)
-            return sel_indices,currScore
+            return sel_indices,currScore,minoux_bound
         ''' Increase iteration number'''
         i+=1
 
@@ -311,7 +322,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
         if loss_supermodular:
             y_t,score = submodular_supermodular_maximization(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
         else:
-            y_t,score = leskovec_maximize(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
+            y_t,score,online_bound = leskovec_maximize(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
 
 
         ''' Subgradient '''        
@@ -364,7 +375,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
                 w[it][w[it]<0]=0
                 if w[it].sum()>0:
                     w[it]=w[it]/w[it].sum()
-                    
+
         else: # projection of [1]
             ''' update the weights accoring to  [1] algorithm 1'''
             w[it][w[it]<0]=0
