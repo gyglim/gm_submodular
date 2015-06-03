@@ -21,7 +21,7 @@ import scipy.optimize
 import scipy.linalg
 import utils
 import time
-from IPython.core.debugger import Tracer
+#from IPython.core.debugger import Tracer
 logger = logging.getLogger('gm_submodular')
 logger.setLevel(logging.INFO)
 skipAssertions=False
@@ -200,10 +200,9 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             if marginal_benefits[-1]< -10**-5:
                 warnings.warn('Non monotonic objective')
 
-        # Compute Minoux bound [4]
+        # Compute online bound (see [4])
         if i==0:
             best_sel_indices=np.where(costs[mb_indices].cumsum()<=budget)[0]
-            #Tracer()()
             minoux_bound = marginal_benefits[mb_indices][best_sel_indices].sum()
 
 
