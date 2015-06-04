@@ -8,7 +8,8 @@ if you use this code, please cite Gygli et al. [3]
     [3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
     [4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions. Optimization Techniques. 1978
     [5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure learning. UAI. 2005
-    [6] Dyer, C. Notes on AdaGrad
+    [6] Duchi, J., Hazan, E., & Singer. Adaptive Subgradient Methods for Online Learning and Stochastic Optimization. Journal of Machine Learning Research 2011
+    [7] Dyer, C. Notes on AdaGrad
 '''
 __author__ = "Michael Gygli"
 __maintainer__ = "Michael Gygli"
@@ -294,7 +295,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
 
     g_t_old=np.zeros(len(function_list))
     if ada_grad:
-        historical_grad=np.zeros(len(function_list))
+        historical_grad=np.ones(len(function_list))*fudge_factor
 
     while exitTraining==False:
         
@@ -341,6 +342,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
             g_t = learn_lambda*w[it] + utils.evalSubFun(function_list,y_t,False)
             g_t= g_t - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
         if ada_grad:
+            # See [6,7]
             historical_grad+= g_t**2
             g_t= g_t / (fudge_factor + np.sqrt(historical_grad))
         logger.debug('Gradient:')
@@ -355,7 +357,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
         if use_l1_inequality:
             # We want to keep the euclidean distance between the initial and the projected weight minimal
             if ada_grad:
-                # See [6]
+                # See [7]
                 obj=lambda w_t: (np.multiply(w_t-w[it],w_t-w[it]) / (fudge_factor + historical_grad)).sum()
             else:
                 obj=lambda w_t: np.inner(w_t-w[it],w_t-w[it])
@@ -393,7 +395,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
             w[it][w[it]<0]=0
             w[it]=w[it]/np.sum(np.abs(w[it]))
             w[it][np.isnan(w[it])]=0
-            
+
 
         logger.debug('w[it]:\n')
         logger.debug(w[it])
