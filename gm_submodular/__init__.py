@@ -8,6 +8,7 @@ if you use this code, please cite Gygli et al. [3]
     [3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
     [4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions. Optimization Techniques. 1978
     [5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure learning. UAI. 2005
+    [6] Dyer, C. Notes on AdaGrad
 '''
 __author__ = "Michael Gygli"
 __maintainer__ = "Michael Gygli"
@@ -240,7 +241,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
 
 
 def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, use_l1_inequality=False,
-                           momentum=0, loss_supermodular=False):
+                           momentum=0, loss_supermodular=False, ada_grad=False):
     '''
     This code implements algorithm 1 of [1]
     :param training_data: training data. S[t].Y:             indices of possible set elements
@@ -275,6 +276,9 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
      then, we use learning rate nu=2/ (lambda*t)
     with '''
     learn_lambda=G/M * np.sqrt((2+(1+np.log(T)) / float(T)))
+
+    # fudge factor as in http://xcorr.net/2014/01/23/adagrad-eliminating-learning-rates-in-stochastic-gradient-descent/
+    fudge_factor = 1e-6 #for numerical stability
     logger.debug('Training using %d samples' % T)
 
     if len(function_list)<=1:
@@ -289,6 +293,8 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
     exitTraining=False
 
     g_t_old=np.zeros(len(function_list))
+    if ada_grad:
+        historical_grad=np.zeros(len(function_list))
 
     while exitTraining==False:
         
@@ -334,6 +340,9 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
         else: # Lin et al. use an l2 regularized formulation, and have thus a different gradient
             g_t = learn_lambda*w[it] + utils.evalSubFun(function_list,y_t,False)
             g_t= g_t - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
+        if ada_grad:
+            historical_grad+= g_t**2
+            g_t= g_t / (fudge_factor + np.sqrt(historical_grad))
         logger.debug('Gradient:')
         logger.debug(g_t)
 
@@ -345,7 +354,11 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
         ''' Project to feasible set'''
         if use_l1_inequality:
             # We want to keep the euclidean distance between the initial and the projected weight minimal
-            obj=lambda w_t: np.inner(w_t-w[it],w_t-w[it])
+            if ada_grad:
+                # See [6]
+                obj=lambda w_t: (np.multiply(w_t-w[it],w_t-w[it]) / (fudge_factor + historical_grad)).sum()
+            else:
+                obj=lambda w_t: np.inner(w_t-w[it],w_t-w[it])
             cons=[]
             bnds=[]
             # Define the bounds such that w[it]>0
@@ -370,7 +383,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, maxIter=10, u
                 if np.sum(w[it])>0:
                     w[it]=w[it]/np.sum(w[it])
             else:
-                logger.error('Iteration %d: l1: Failed to find constraint solution on w' % it)
+                logger.warn('Iteration %d: l1: Failed to find constraint solution on w' % it)
                 w[it][w[it]<0]=0
                 if w[it].sum()>0:
                     w[it]=w[it]/w[it].sum()

@@ -15,7 +15,7 @@ import sys
 import pystruct.learners
 import subm_tests.test_pystruct as tp
 
-num_iter=100
+num_iter=10
 
 def representativeness_shell_x(S):
     '''
@@ -49,7 +49,7 @@ def plotExample(S,objectives,weights, title):
     :return: None
     '''
     # Maximize the objectives
-    selected_elements,score=gm_submodular.leskovec_maximize(S,weights,objectives,S.budget)
+    selected_elements,score,_=gm_submodular.leskovec_maximize(S,weights,objectives,S.budget)
 
     # Plot results
     plt.figure(figsize=(16,8)) # Definition of a larger figure (in inches)
@@ -112,7 +112,7 @@ def createTrainingData(weights=[1,0],num_noise_obj=0, gt_variability=0,num_datas
         S.budget=5
         objectives,obj_names=gm_submodular.utils.instaciateFunctions(shells,S)
         test_b=int(S.budget*(gt_variability+1))
-        selected_elements,score=gm_submodular.leskovec_maximize(S,weights_gt,objectives,test_b)
+        selected_elements,score,_=gm_submodular.leskovec_maximize(S,weights_gt,objectives,test_b)
         S.y_gt=list(np.array(selected_elements)[np.random.permutation(test_b)][0:S.budget])
         training_examples.append(S)
     return training_examples,shells,weights_gt
@@ -120,12 +120,12 @@ def createTrainingData(weights=[1,0],num_noise_obj=0, gt_variability=0,num_datas
 def getError(weights=[1,0],num_noise_obj=0, gt_variability=0, num_runs=100):
     l1_error=[]
     lin_error=[]
-    pystruct_error=[]
+    adagrad_error=[]
     for runNr in range(0,num_runs):
         training_examples,shells,weights_gt = createTrainingData(np.array(weights).copy(),num_noise_obj, gt_variability)
-        m=tp.SubmodularSSVM(shells)
-        sg_ssvm=pystruct.learners.SubgradientSSVM(m,max_iter=num_iter,shuffle=True,averaging='linear')
-        res_ps=sg_ssvm.fit(training_examples,map(lambda x: x.y_gt,training_examples))
+        #m=tp.SubmodularSSVM(shells)
+        #sg_ssvm=pystruct.learners.SubgradientSSVM(m,max_iter=num_iter,shuffle=True,averaging='linear')
+        #res_ps=sg_ssvm.fit(training_examples,map(lambda x: x.y_gt,training_examples))
 
         weights_simple,dummy = gm_submodular.learnSubmodularMixture(training_examples,
                                                                     shells,
@@ -135,9 +135,13 @@ def getError(weights=[1,0],num_noise_obj=0, gt_variability=0, num_runs=100):
                                                                 shells,
                                                                 ex.intersect_complement_loss,
                                                                 num_iter, use_l1_inequality=True)
-        weights_pystruct=np.array(res_ps.w,np.float32)
-        weights_pystruct[weights_pystruct<0]=0
-        weights_pystruct/=weights_pystruct.sum()
+        weights_adagrad,dummy = gm_submodular.learnSubmodularMixture(training_examples,
+                                                                shells,
+                                                                ex.intersect_complement_loss,
+                                                                num_iter, use_l1_inequality=True, ada_grad=True)
+        weights_adagrad=np.array(weights_adagrad,np.float32)
+        weights_adagrad[weights_adagrad<0]=0
+        weights_adagrad/=weights_adagrad.sum()
         # Compute the relative deviation from the target weights
         weights_gt=np.array(weights_gt,np.float32)
         weights_l1/=weights_l1.sum()    
@@ -145,18 +149,18 @@ def getError(weights=[1,0],num_noise_obj=0, gt_variability=0, num_runs=100):
         weights_gt/=float(weights_gt.sum())
         diff_l1=np.abs(weights_gt-weights_l1)
         diff_simple=np.abs(weights_gt-weights_simple)
-        diff_pystruct=np.abs(weights_gt-weights_pystruct)
+        diff_adagrad=np.abs(weights_gt-weights_adagrad)
         l1_error.append(diff_l1.sum())
         lin_error.append(diff_simple.sum())
-        pystruct_error.append(diff_pystruct.sum())
+        adagrad_error.append(diff_adagrad.sum())
 
     # report and return deviation from the target weights
     l1_error=(np.array(l1_error).mean(),np.array(l1_error).std())
     lin_error=np.array(lin_error).mean(),np.array(lin_error).std()
-    pystruct_error=np.array(pystruct_error).mean(),np.array(pystruct_error).std()
-    print('l1-ball: %.10f; lin: %.10f; pystruct: %.10f' % (l1_error[0],lin_error[0],pystruct_error[0]))
+    adagrad_error=np.array(adagrad_error).mean(),np.array(adagrad_error).std()
+    print('l1-ball: %.10f; lin: %.10f; adagrad: %.10f' % (l1_error[0],lin_error[0],adagrad_error[0]))
     sys.stdout.flush()
-    return l1_error,lin_error,pystruct_error
+    return l1_error,lin_error,adagrad_error
 
 def get_noisy_objective_plot(num_runs=100):
     '''
@@ -165,25 +169,29 @@ def get_noisy_objective_plot(num_runs=100):
     '''
     l1_error=[]
     lin_error=[]
+    adagrad_error=[]
     num_noise_obj=range(0,5)
     print('testing range %s' % ', '.join(map(str,num_noise_obj)))
     for num_noise in num_noise_obj:
-        l1,lin,pystruct=getError(num_noise_obj=num_noise,num_runs=num_runs)
+        l1,lin,adagrad=getError(num_noise_obj=num_noise,num_runs=num_runs)
         l1_error.append(l1)
         lin_error.append(lin)
+        adagrad_error.append(adagrad)
     plt.figure(figsize=(10,10))
     plt.errorbar(num_noise_obj,np.array(l1_error)[:,0]*100,yerr=np.array(l1_error)[:,1]*100,linewidth=3)
     plt.hold(True)
     plt.errorbar(num_noise_obj,np.array(lin_error)[:,0]*100,yerr=np.array(lin_error)[:,1]*100,color='red',linewidth=3)
+    plt.hold(True)
+    plt.errorbar(num_noise_obj,np.array(adagrad_error)[:,0]*100,yerr=np.array(adagrad_error)[:,1]*100,color='green',linewidth=3)
     plt.title('Robustness w.r.t. noise objectives',fontsize=22)
-    plt.legend(['l1 inequality (ours)','Lin et al.'],fontsize=18)
+    plt.legend(['l1 inequality (ours)','Lin et al.','AdaGrad L1'],fontsize=18)
     plt.xlabel('# of noise objectives',fontsize=18)
     plt.ylabel('Deviations from the ground truth weights [%]',fontsize=18)
     plt.grid()
     plt.show()
-    data={'num_runs':num_runs,'num_noise_obj':num_noise_obj,'l1_error':l1_error,'lin_error':lin_error}
-    with open('noisy_gt.pickle','w') as f:
-        pickle.dump(data,f)
+    #data={'num_runs':num_runs,'num_noise_obj':num_noise_obj,'l1_error':l1_error,'lin_error':lin_error}
+    #with open('noisy_gt.pickle','w') as f:
+    #    pickle.dump(data,f)
     return num_noise_obj,l1_error,lin_error
 
 def get_noisy_ground_truth_plot(num_runs=100):
@@ -195,18 +203,22 @@ def get_noisy_ground_truth_plot(num_runs=100):
     '''
     l1_error=[]
     lin_error=[]
+    adagrad_error=[]
     gt_variability=np.arange(0,1.001,0.2)
     print('testing range %s' % ', '.join(map(str,gt_variability)))
     for gt_var in gt_variability:
-        l1,lin,pystruct=getError(gt_variability=gt_var,num_runs=num_runs)
+        l1,lin,adagrad=getError(gt_variability=gt_var,num_runs=num_runs)
         l1_error.append(l1)
         lin_error.append(lin)
+        adagrad_error.append(adagrad)
     plt.figure(figsize=(10,10))
     plt.errorbar(gt_variability*100,np.array(l1_error)[:,0]*100,yerr=np.array(l1_error)[:,1]*100,linewidth=3)
     plt.hold(True)
     plt.errorbar(gt_variability*100,np.array(lin_error)[:,0]*100,yerr=np.array(lin_error)[:,1]*100,color='red',linewidth=3)
+    plt.hold(True)
+    plt.errorbar(gt_variability*100,np.array(adagrad_error)[:,0]*100,yerr=np.array(adagrad_error)[:,1]*100,color='green',linewidth=3)
     plt.title('Robustness w.r.t. noise objectives',fontsize=22)
-    plt.legend(['l1 inequality (ours)','Lin et al.'],fontsize=18)
+    plt.legend(['l1 inequality (ours)','Lin et al.','AdaGrad L1'],fontsize=18)
     plt.xlabel('noise in ground truth [%]',fontsize=18)
     plt.ylabel('Deviations from the ground truth weights [%]',fontsize=18)
     plt.grid()
@@ -226,19 +238,19 @@ def get_multiobjective_plot(num_runs=100,num_noise_obj=1):
     '''
     l1_error=[]
     lin_error=[]
-    pystruct_error=[]
+    adagrad_error=[]
     obj_ratio=np.arange(0,1.001,0.1)
     print('testing ratios %s' % ', '.join(map(str,obj_ratio)))
     for obj_r in obj_ratio:
-        l1,lin,pystruct=getError(weights=[1-obj_r, obj_r],num_runs=num_runs,num_noise_obj=num_noise_obj)
+        l1,lin,adagrad=getError(weights=[1-obj_r, obj_r],num_runs=num_runs,num_noise_obj=num_noise_obj)
         l1_error.append(l1)
         lin_error.append(lin)
-        pystruct_error.append(pystruct)
+        adagrad_error.append(adagrad)
 
     # Save to file
     data={'num_runs':num_runs,'obj_ratio':obj_ratio,'l1_error':l1_error,'lin_error':lin_error}
-    with open('multiobjective.pickle','w') as f:
-        pickle.dump(data,f)
+    #with open('multiobjective.pickle','w') as f:
+    #    pickle.dump(data,f)
 
     #Plot
     plt.figure(figsize=(10,10))
@@ -246,9 +258,9 @@ def get_multiobjective_plot(num_runs=100,num_noise_obj=1):
     plt.hold(True)
     plt.errorbar(obj_ratio*100,np.array(lin_error)[:,0]*100,yerr=np.array(lin_error)[:,1]*100,color='red',linewidth=3)
     plt.hold(True)
-    #plt.errorbar(obj_ratio*100,np.array(pystruct_error)[:,0]*100,yerr=np.array(pystruct_error)[:,1]*100,color='green',linewidth=3)
+    plt.errorbar(obj_ratio*100,np.array(adagrad_error)[:,0]*100,yerr=np.array(adagrad_error)[:,1]*100,color='green',linewidth=3)
     #plt.title('Fidelity regarding different target weight',fontsize=22)
-    plt.legend(['l1 inequality (ours)','Lin et al.','pystruct'],fontsize=18)
+    plt.legend(['l1 inequality (ours)','Lin et al.','AdaGrad L1'],fontsize=18)
     plt.xlabel('relative weight importance',fontsize=18)
     plt.ylabel('Deviations from the ground truth weights [%]',fontsize=18)
     plt.grid()
