@@ -131,7 +131,8 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-1
         else:
             improvementFound=False
     logger.debug('Took %d iteations.' % iter)
-    assert (len(A_old) == S.budget)
+    if len(A_old) < S.budget:
+        logger.warn('Selected solution is smaller than the budget (%d of %d' % (len(A_old),S.budget))
     return A_old,maxVal
 
 
@@ -185,8 +186,6 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             else:
                 t_marg=(np.dot(w,utils.evalSubFun(submod_fun,cand,False,w)) + loss_fun(S,cand) - currScore)
 
-            #if verbose:
-            #    print('%d has gain %.3f (before: %.3f)\n' % (mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
             if not skipAssertions:
                 assert marginal_benefits[mb_indices[0]]-t_marg > -10**-5, ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
             marginal_benefits[mb_indices[0]]=t_marg
@@ -217,7 +216,8 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             else:
                 currScore=currScore + marginal_benefits[mb_indices[0]]
             currCost=currCost+ costs[mb_indices[0]]
-            marginal_benefits[mb_indices[0]]=0
+            # FIXME: This is a rather hacky way to take this element out of the candidate set
+            marginal_benefits[mb_indices[0]]=-np.inf
             mb_indices=(-marginal_benefits).argsort()
             isUpToDate[:]=0
 
@@ -298,7 +298,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=SGDpar
     logger.debug('Training using %d samples' % T)
 
     if len(function_list)<=1:
-        print('Just 1 function. No work for me here :-)\n')
+        logger.info('Just 1 function. No work for me here :-)\n')
         return 1
 
     ''' Start training '''
