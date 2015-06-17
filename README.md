@@ -1,11 +1,11 @@
 # README #
 
-### What is this repository for? ###
 
-* tools for submodular maximization and learning mixtures of submodular functions.
+### What is this repository for? ###
+This repo contains a python package with tools for submodular maximization and learning mixtures of submodular functions (SSVM).
+
 1. Inference: Lazy greedy maximization [Minoux. Optimization Techniques 1978], Cost-sensitive maximization [Leskovec et al. ACM SIGKDD 2007]
-2. Learning: Mixture learing with SGD [Lin & Bilmes. UAI 2012] and AdaGrad [Duchi et al. Journal of ML research 2011]
-* Version 0.1
+2. Learning: Mixture learing with SGD [Lin & Bilmes. UAI 2012] and AdaGrad [Duchi et al. J. of MLR 2011]
 
 ### How do I get set up? ###
 
@@ -14,8 +14,7 @@
 * python setup.py --user
 
 ### Setting started ###
-* See http://people.ee.ethz.ch/~gyglim/work_public/index.html
-
+* See http://www.vision.ee.ethz.ch/~gyglim/gm_submodular/gm_submodular_usage.html
 
 ### Licence ###
 Copyright (c) 2015, ETH Zurich. All rights reserved.
