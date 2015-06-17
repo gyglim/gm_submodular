@@ -1,7 +1,10 @@
 ### SVN ###
 .svn/
-gm_submodular/*.pvc
+gm_submodular/*.pyc
 gm_submodular/.svn/
+gm_submodular.egg-info/
 subm_tests/.svn/
 subm_tests/*.pyc
-
+*~
+.idea/
+tests/
