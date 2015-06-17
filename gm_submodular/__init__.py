@@ -1,20 +1,31 @@
 '''
 This package contains code for submodular maximization and
-structured learning using stochastic gradient decent
-if you use this code, please cite Gygli et al. [3]
+structured learning using stochastic gradient decent.
+In particular, it implements the algorithms of [1,2,4] and allows to use AdaGrad [6,7] in the optimization.
+Furthermore it allows to use supermodular loss functions, by approximating them using a variant
+of a submodular-supermodular procedure based on [5].
 
-    [1] Lin, H. & Bilmes, J. Learning mixtures of submodular shells with application to document summarization. UAI 2012
-    [2] Leskovec, J., Krause, A., Guestrin, C., Faloutsos, C., VanBriesen, J., & Glance, N. Cost-effective outbreak detection in networks. ACM SIGKDD 2007
-    [3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
-    [4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions. Optimization Techniques. 1978
-    [5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure learning. UAI. 2005
-    [6] Duchi, J., Hazan, E., & Singer. Adaptive Subgradient Methods for Online Learning and Stochastic Optimization. Journal of Machine Learning Research 2011
-    [7] Dyer, C. Notes on AdaGrad
+REFERENCES:
+[1] Lin, H. & Bilmes, J. Learning mixtures of submodular shells with application to
+    document summarization. UAI 2012
+[2] Leskovec, J., Krause, A., Guestrin, C., Faloutsos, C., VanBriesen, J., & Glance, N. Cost-effective outbreak
+    detection in networks. ACM SIGKDD 2007
+[3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives.
+    CVPR 2015
+[4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions.
+    Optimization Techniques. 1978
+[5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure
+    learning. UAI. 2005
+[6] Duchi, J., Hazan, E., & Singer. Adaptive Subgradient Methods for Online Learning and Stochastic Optimization.
+    Journal of Machine Learning Research 2011
+[7] Dyer, C. Notes on AdaGrad
 '''
 __author__ = "Michael Gygli"
 __maintainer__ = "Michael Gygli"
 __email__ = "gygli@vision.ee.ethz.ch"
 __version__="0.1"
+__license__='BSD licence. If you use this code, please cite Gygli et al. [3]'
+
 import numpy as np
 import random
 import logging
@@ -262,7 +273,7 @@ class SGDparams:
 
 
 
-def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=SGDparams(), loss_supermodular=False):
+def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, loss_supermodular=False):
     '''
     This code implements algorithm 1 of [1]
     :param training_data: training data. S[t].Y:             indices of possible set elements
@@ -275,6 +286,9 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=SGDpar
     :param   loss_supermodular: True, if the loss is supermodular. Then, [5] is used for loss-augmented inference
     :return: learnt weights, weights per iteration
     '''
+
+    if params == None:
+        params = SGDparams()
 
     if len(training_data) ==0:
         raise IOError('No training examples given')
