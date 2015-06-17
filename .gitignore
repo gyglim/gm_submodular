@@ -1,4 +1,7 @@
 ### SVN ###
 .svn/
+gm_submodular/*.pvc
 gm_submodular/.svn/
 subm_tests/.svn/
+subm_tests/*.pyc
+

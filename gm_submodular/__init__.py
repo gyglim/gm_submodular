@@ -217,12 +217,10 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             else:
                 currScore=currScore + marginal_benefits[mb_indices[0]]
             currCost=currCost+ costs[mb_indices[0]]
-            # FIXME: This is a rather hacky way to take this element out of the candidate set
-
-            #marginal_benefits[mb_indices[0]] = -np.inf
 
             # Set the selected element to -1 (so that it is not becoming a candidate again)
             # Set all others to not up to date (so that the marignal gain will be recomputed)
+            marginal_benefits[mb_indices[0]] = -np.inf
             isUpToDate[isUpToDate==1]=0
             isUpToDate[mb_indices[0]]=-1
 
