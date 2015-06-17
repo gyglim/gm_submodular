@@ -19,6 +19,7 @@ Learning: Mixture learing with SGD [Lin & Bilmes]
 
 ### Licence ###
 Copyright (c) 2015, ETH Zurich
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
