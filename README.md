@@ -5,7 +5,7 @@
 This repo contains a python package with tools for submodular maximization and learning mixtures of submodular functions (SSVM).
 
 1. Inference: Lazy greedy maximization [Minoux. Optimization Techniques 1978], Cost-sensitive maximization [Leskovec et al. ACM SIGKDD 2007]
-2. Learning: Mixture learing with SGD [Lin & Bilmes. UAI 2012] and AdaGrad [Duchi et al. J. of MLR 2011]
+2. Learning: Mixture learning with SGD [Lin & Bilmes. UAI 2012] and AdaGrad [Duchi et al. J. of MLR 2011]
 
 ### How do I get set up? ###
 
