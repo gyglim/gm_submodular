@@ -7,6 +7,7 @@ This repo contains a python package with tools for submodular maximization and l
 1. Inference: Lazy greedy maximization [Minoux. Optimization Techniques 1978], Cost-sensitive maximization [Leskovec et al. ACM SIGKDD 2007]
 2. Learning: Mixture learning with SGD [Lin & Bilmes. UAI 2012] and AdaGrad [Duchi et al. J. of MLR 2011]
 
+If you use this code, please cite: Gygli, Grabner & Van Gool. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
 ### How do I set it up? ###
 
 * Requires: numpy, scipy
