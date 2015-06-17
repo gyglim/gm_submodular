@@ -66,12 +66,14 @@ def leskovec_maximize(S,w,submod_fun,budget,loss_fun=None):
         logger.debug('Cost benefit greedy')
 
         y_cost,score_cost,minoux_bound_cost=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,True)
-        if score_cost>score:
-            logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound_cost))))
+        if score_cost>score :
+            if minoux_bound_cost>0:
+                logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound_cost))))
             return y_cost,score_cost,minoux_bound_cost
         else:
-            logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound))))
-    else:
+            if minoux_bound>0:
+                logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound))))
+    elif minoux_bound>0:
         logger.debug('Score: %.3f (%.1f%% of the Minoux bound; 63%% of Nemhauser bound)' % (score, 100*(score / float(minoux_bound))))
 
     return y,score,minoux_bound

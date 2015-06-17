@@ -4,6 +4,7 @@ gm_submodular/*.pyc
 gm_submodular/.svn/
 gm_submodular.egg-info/
 subm_tests/.svn/
+subm_tests/*.png
 subm_tests/*.pyc
 *~
 .idea/
