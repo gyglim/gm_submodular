@@ -17,7 +17,7 @@ If you use this code, please cite: Gygli, Grabner & Van Gool. Video Summarizatio
 ### Setting started ###
 * See http://www.vision.ee.ethz.ch/~gyglim/gm_submodular/gm_submodular_usage.html
 
-### Licence ###
+### Licence (BSD) ###
 Copyright (c) 2015, ETH Zurich. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
