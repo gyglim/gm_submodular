@@ -88,9 +88,9 @@ def modular_approximation(loss,pi,S):
     '''
     W_old=[]
     scores=np.zeros(len(S.Y))
-    for i in range(1,len(S.Y)):
+    for i in range(0,len(S.Y)):
         W = W_old[:]
-        W.append(S.Y[pi[i]])
+        W.append(pi[i])
         scores[pi[i]]=loss(S, W) - loss(S, W_old)
         W_old = W
     return lambda S, X: scores[X].sum()#+loss(S,[])
