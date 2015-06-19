@@ -7,15 +7,27 @@ This repo contains a python package with tools for submodular maximization and l
 1. Inference: Lazy greedy maximization [Minoux. Optimization Techniques 1978], Cost-sensitive maximization [Leskovec et al. ACM SIGKDD 2007]
 2. Learning: Mixture learning with SGD [Lin & Bilmes. UAI 2012] and AdaGrad [Duchi et al. J. of MLR 2011]
 
-If you use this code, please cite: Gygli, Grabner & Van Gool. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
+If you use this code, please cite: *Gygli, Grabner & Van Gool. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015*.  
+[Paper](http://www.vision.ee.ethz.ch/~gyglim/vsum_struct/GygliCVPR15_vsum_struct.pdf) | [Bibtex](http://www.vision.ee.ethz.ch/~gyglim/vsum_struct/bibtex_cvpr2015.txt)
+
 ### How do I set it up? ###
 
 * Requires: numpy, scipy
-* git clone https://bitbucket.org/gyglim/gm_submodular
-* python setup.py --user
+* Installation:
+```
+#!python
+cd YourPath
+git clone https://bitbucket.org/gyglim/gm_submodular
+cd gm_submodular
+python setup.py install --user
+
+```
+
 
 ### Setting started ###
-* See http://www.vision.ee.ethz.ch/~gyglim/gm_submodular/gm_submodular_usage.html
+You can find an example [**here**](http://www.vision.ee.ethz.ch/~gyglim/gm_submodular/gm_submodular_usage.html).
+This shows how to do submodular maximization as well as learning mixtures of objectives from training data.  
+For more information check [[Lin & Bilmes. UAI 2012]](http://arxiv.org/pdf/1210.4871) and [[Gygli et al. CVPR 2015]](http://www.vision.ee.ethz.ch/~gyglim/vsum_struct/GygliCVPR15_vsum_struct.pdf)
 
 ### Licence (BSD) ###
 Copyright (c) 2015, ETH Zurich. All rights reserved.
