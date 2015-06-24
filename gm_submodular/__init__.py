@@ -34,9 +34,9 @@ import scipy.optimize
 import scipy.linalg
 import utils
 import time
-#from IPython.core.debugger import Tracer
+from IPython.core.debugger import Tracer
 logger = logging.getLogger('gm_submodular')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 skipAssertions=False
 
 
@@ -129,7 +129,7 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-1
         A_old=A
         A,val,online_bound=leskovec_maximize(S,w,submod_fun,budget,loss_fun=h)
         logger.debug('Selected %d elements: [%s]' % (len(A),' '.join(map(lambda x: str(x),A))))
-        assert (len(A) <= S.budget)
+        assert (len(A) == S.budget)
 
         # update pi
         D = np.setdiff1d(S.Y,A)
@@ -212,7 +212,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
                 mb_indices=(-marginal_benefits).argsort(axis=0)
 
             if marginal_benefits[-1]< -10**-5:
-                warnings.warn('Non monotonic objective')
+                logger.warn('Non monotonic objective')
 
         # Compute online bound (see [4])
         if i==0:
@@ -233,7 +233,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
 
             # Set the selected element to -1 (so that it is not becoming a candidate again)
             # Set all others to not up to date (so that the marignal gain will be recomputed)
-            marginal_benefits[mb_indices[0]] = -np.inf
+            marginal_benefits[mb_indices[0]] = 0#-np.inf
             isUpToDate[isUpToDate==1]=0
             isUpToDate[mb_indices[0]]=-1
 
@@ -267,6 +267,8 @@ class SGDparams:
         self.use_l1_projection=False
         self.use_ada_grad=False
         self.max_iter=10
+        self.learn_lambda=None
+        self.nu=lambda t,T: 1.0/(t+1)**(0.1)
         for k,v in kwargs.items():
             setattr(self,k,v)
 
@@ -291,28 +293,32 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
 
     if params == None:
         params = SGDparams()
+    logger.info('%s' % params)
 
     if len(training_data) ==0:
         raise IOError('No training examples given')
-    # Make a copy of the training samples so that is doesn't shuffle the input list
+    # Make a copy of the training samples so that is doesn't shuffle the     input list
     training_examples=training_data[:]
 
     ''' Initialize the weights '''
     function_list,names=utils.instaciateFunctions(submod_shells,training_examples[0])
-    w_0=np.zeros(len(function_list),np.float)
+    w_0=np.ones(len(function_list),np.float)
+    #w_0=np.random.rand(len(function_list))
 
-    ''' Set learning rate according to theorem from
-        "Learning Mixtures of Submodular Shells" - Lin & Bilmes 2012 '''
+    learn_lambda = params.learn_lambda
     T = len(training_examples)*params.max_iter
-    M=len(submod_shells)
-    G=1.0
-    ''' Assume:
-     - w_i,f_i are all upperbounded by 1
-     - loss l <= B for some B
-     - ||g_t|| <= G, for some G
-     then, we use learning rate nu=2/ (lambda*t)
-    with '''
-    learn_lambda=G/M * np.sqrt((2+(1+np.log(T)) / float(T)))
+    if learn_lambda is None:
+        ''' Set learning rate according to theorem from
+            "Learning Mixtures of Submodular Shells" - Lin & Bilmes 2012 '''
+        M=len(submod_shells)
+        G=1.0
+        ''' Assume:
+         - w_i,f_i are all upperbounded by 1
+         - loss l <= B for some B
+         - ||g_t|| <= G, for some G
+         then, we use learning rate nu=2/ (lambda*t)
+        with '''
+        learn_lambda=G/M * np.sqrt((2+(1+np.log(T)) / float(T)))
 
     # fudge factor as in http://xcorr.net/2014/01/23/adagrad-eliminating-learning-rates-in-stochastic-gradient-descent/
     fudge_factor = 1e-6 #for numerical stability
@@ -365,28 +371,41 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
             y_t,score = submodular_supermodular_maximization(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
         else:
             y_t,score,online_bound = leskovec_maximize(training_examples[t],w[it],function_list,training_examples[t].budget,loss_fun)
+        assert(len(y_t)==training_examples[t].budget)
 
 
-        ''' Subgradient '''        
+        ''' Subgradient '''
+        score_t  = utils.evalSubFun(function_list,y_t,False)
+        score_t /= score_t.sum()
+        score_gt = utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
+        score_gt /= score_gt.sum()
+
+
         if params.use_l1_projection:
-            score_t  = utils.evalSubFun(function_list,y_t,False)
-            score_gt = utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
             g_t = score_t - score_gt
-            g_t = ((1 - params.momentum) * g_t + params.momentum * g_t_old)
-            g_t_old=g_t
         else: # Lin et al. use an l2 regularized formulation, and have thus a different gradient
-            g_t = learn_lambda*w[it] + utils.evalSubFun(function_list,y_t,False)
-            g_t= g_t - utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
+            g_t = learn_lambda*w[it] + (score_t - score_gt)
+        g_t = ((1 - params.momentum) * g_t + params.momentum * g_t_old)
+
         if params.use_ada_grad:
             # See [6,7]
+            g_t_old=g_t
             historical_grad+= g_t**2
             g_t= g_t / (fudge_factor + np.sqrt(historical_grad))
         logger.debug('Gradient:')
         logger.debug(g_t)
 
         ''' Update weights '''
-        nu = 2.0 / float(learn_lambda*(it+1))
-        logger.debug('Nu: %.3f' % nu)
+        if params.nu is None:
+            nu = 2.0 / float(learn_lambda*(it+1))
+        else:
+            if hasattr(params.nu,'__call__'):
+                nu=params.nu(it,T)
+            else:
+                nu=params.nu
+        if np.mod(it,10)==0:
+            logger.info('Nu: %.3f; Gradient: %s; Grad magnitue (abs): %.4f' % (nu, ', '.join(map(str,g_t)),nu*np.sum(np.abs(g_t))))
+
         w[it]=w[it]-nu*g_t
 
         ''' Project to feasible set'''
@@ -429,12 +448,12 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
         else: # projection of [1]
             ''' update the weights accoring to  [1] algorithm 1'''
             w[it][w[it]<0]=0
-            w[it]=w[it]/np.sum(np.abs(w[it]))
-            w[it][np.isnan(w[it])]=0
+            if w[it].sum()>0:
+                w[it]=w[it]/np.sum(np.abs(w[it]))
+            #w[it][np.isnan(w[it])]=0
 
-
-        logger.debug('w[it]:\n')
-        logger.debug(w[it])
+        if np.mod(it,10)==0:
+            logger.info('w[it]:\t%s' % ', '.join(map(str,w[it])))
         it=it+1
         logger.debug(it)
         if it>=len(training_examples)*params.max_iter:
