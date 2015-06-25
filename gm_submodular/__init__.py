@@ -1,23 +1,44 @@
 '''
 This package contains code for submodular maximization and
 structured learning using stochastic gradient decent.
+It allows to learn an objective function as a linear combination of simpler functions f, i.e.
+
+.. math:: o(\mathbf{x_\mathcal{V}},\mathbf{y})=\mathbf{w^\mathrm{T}}\mathbf{f}(\mathbf{x_\mathcal{V},y}).
+This is known as the structured SVM problem.
+
+In this package, we use stochastic gradient descent in combination with specialized algorithms for submodular maximization.
 In particular, it implements the algorithms of [1,2,4] and allows to use AdaGrad [6,7] in the optimization.
 Furthermore it allows to use supermodular loss functions, by approximating them using a variant
 of a submodular-supermodular procedure based on [5].
 
+
+You can find an example on how to do submodular maximization and structured learning
+`HERE <http://www.vision.ee.ethz.ch/~gyglim/gm_submodular/gm_submodular_usage.html>`_.
+
+
+If you use this code for your research, please cite [3]:
+
+@inproceedings{GygliCVPR15,
+   author ={Gygli, Michael and Grabner, Helmut and Van Gool, Luc},
+   title = {Video Summarization by Learning Submodular Mixtures of Objectives},
+   booktitle = {CVPR},
+   year = {2015}
+}
+
 REFERENCES:
-[1] Lin, H. & Bilmes, J. Learning mixtures of submodular shells with application to
-    document summarization. UAI 2012
-[2] Leskovec, J., Krause, A., Guestrin, C., Faloutsos, C., VanBriesen, J., & Glance, N. Cost-effective outbreak
-    detection in networks. ACM SIGKDD 2007
-[3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives.
-    CVPR 2015
-[4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions.
-    Optimization Techniques. 1978
-[5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure
-    learning. UAI. 2005
-[6] Duchi, J., Hazan, E., & Singer. Adaptive Subgradient Methods for Online Learning and Stochastic Optimization.
-    Journal of Machine Learning Research 2011
+
+[1] Lin, H. & Bilmes, J. Learning mixtures of submodular shells with application to document summarization. UAI 2012
+
+[2] Leskovec, J., Krause, A., Guestrin, C., Faloutsos, C., VanBriesen, J., & Glance, N. Cost-effective outbreak detection in networks. ACM SIGKDD 2007
+
+[3] Gygli, M., Grabner, H., & Gool, L. Van. Video Summarization by Learning Submodular Mixtures of Objectives. CVPR 2015
+
+[4] Minoux, M. . Accelerated greedy algorithms for maximizing submodular set functions. Optimization Techniques. 1978
+
+[5] Narasimhan, M., & Bilmes, J. A submodular-supermodular procedure with applications to discriminative structure learning. UAI. 2005
+
+[6] Duchi, J., Hazan, E., & Singer. Adaptive Subgradient Methods for Online Learning and Stochastic Optimization. Journal of Machine Learning Research 2011
+
 [7] Dyer, C. Notes on AdaGrad
 '''
 __author__ = "Michael Gygli"
@@ -41,7 +62,15 @@ skipAssertions=False
 
 
 class DataElement:
-    Y=[]
+    '''
+    Defines a DataElement.
+    For inference, this needs the function getCosts(), and a set Y (candidate elements).
+
+    '''
+    def __init__(self):
+
+        Y=[]
+
     def getCosts(self):
         raise NotImplementedError
 
@@ -52,6 +81,7 @@ class DataElement:
 def leskovec_maximize(S,w,submod_fun,budget,loss_fun=None):
     '''
     Implements the submodular maximization algorithm of [2]
+
     :param S: data object containing information on needed in the objective functions
     :param w: weights of the objectives
     :param submod_fun: submodular functions
@@ -61,11 +91,11 @@ def leskovec_maximize(S,w,submod_fun,budget,loss_fun=None):
     '''
 
     logger.debug('Uniform cost greedy')
-    y,score,minoux_bound=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,False)
+    y,score,minoux_bound=lazy_greedy_maximize(S,w,submod_fun,budget,loss_fun,False)
     if len(np.unique(S.getCosts()))>1:
         logger.debug('Cost benefit greedy')
 
-        y_cost,score_cost,minoux_bound_cost=lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun,True)
+        y_cost,score_cost,minoux_bound_cost=lazy_greedy_maximize(S,w,submod_fun,budget,loss_fun,True)
         if score_cost>score :
             if minoux_bound_cost>0:
                 logger.debug('Score: %.3f (%.1f%% of Minoux bound; 31%% of Leskovec bound)' % (score, 100*(score / float(minoux_bound_cost))))
@@ -81,6 +111,7 @@ def leskovec_maximize(S,w,submod_fun,budget,loss_fun=None):
 def modular_approximation(loss,pi,S):
     '''
     Computes a modular approximation of a loss function. Algorithm based on [5]
+
     :param loss: the supermodular loss function we want to approximate
     :param pi: an ordering on S.Y
     :param S: DataElement. needs S.Y
@@ -150,18 +181,17 @@ def submodular_supermodular_maximization(S,w,submod_fun,budget,loss,delta=10**-1
 
 
 
-def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,randomize=True):
+def lazy_greedy_maximize(S,w,submod_fun,budget,loss_fun=None,useCost=False,randomize=True):
     '''
     Implements the submodular maximization algorithm of [4]
+
     :param S: data object containing information on needed in the objective functions
     :param w: weights of the objectives
     :param submod_fun: submodular functions
     :param budget: budget
     :param loss_fun: optional loss function (for learning)
     :param useCost: boolean. Take into account the costs per element or not
-    :param randomize: randomize marginals brefore getting the maximum. This results in selecting a random
-    element among the top scoring ones, rather then taking the one with the lowest index.
-    TODO: This can definitely be done faster than it is now
+    :param randomize: randomize marginals brefore getting the maximum. This results in selecting a random element among the top scoring ones, rather then taking the one with the lowest index.
     :return: y, score: selected indices y and the score of the solution
     '''
 
@@ -200,7 +230,7 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
                 t_marg=(np.dot(w,utils.evalSubFun(submod_fun,cand,False,w)) + loss_fun(S,cand) - currScore)
 
             if not skipAssertions:
-                assert marginal_benefits[mb_indices[0]]-t_marg > -10**-5, ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
+                assert marginal_benefits[mb_indices[0]]-t_marg >= np.max(-10**-5,-10**-8*t_marg), ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
             marginal_benefits[mb_indices[0]]=t_marg
             isUpToDate[mb_indices[0]]=True
 
@@ -211,8 +241,8 @@ def lazy_greedy_optimize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             else:
                 mb_indices=(-marginal_benefits).argsort(axis=0)
 
-            if marginal_benefits[-1]< -10**-5:
-                logger.warn('Non monotonic objective')
+            if not skipAssertions:
+                assert marginal_benefits[-1]> -10**-5,'Non monotonic objective'
 
         # Compute online bound (see [4])
         if i==0:
@@ -263,12 +293,13 @@ class SGDparams:
         Class for the parameters of stochastic gradient descent used for learnSubmodularMixture
     '''
     def __init__(self,**kwargs):
-        self.momentum=0.0
-        self.use_l1_projection=False
-        self.use_ada_grad=False
-        self.max_iter=10
-        self.learn_lambda=None
-        self.nu=lambda t,T: 1.0/(t+1)**(0.1)
+        self.momentum=0.0  #: defines the momentum used. Default: 0.0
+        self.use_l1_projection=False #: project the weights into an l_1 ball (leads to sparser solutions). Default: False
+        self.use_ada_grad=False #: use adaptive gradient [6]? Default: False
+        self.max_iter=10 #: number of passes throught the dataset (3-10 should do). Default: 10
+        self.norm_objective_scores=False #: normalize the objective scores to sum to one. This improved the learnt weights and can be considered to be the equivalent to l1 normalization of feature points in a standard SVM
+        self.learn_lambda=None #: learning rate. Default: Estimated using [1]
+        self.nu=lambda t,T: 1.0/np.sqrt(t+1) #: Function nu(t,T) to compute nu for each iteration, given the current iteration t and the maximal number of iterations T. Default: 1/sqrt(t+1)
         for k,v in kwargs.items():
             setattr(self,k,v)
 
@@ -279,7 +310,8 @@ class SGDparams:
 
 def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, loss_supermodular=False):
     '''
-    This code implements algorithm 1 of [1]
+    Learns mixture weights of submodular functions. This code implements algorithm 1 of [1]
+
     :param training_data: training data. S[t].Y:             indices of possible set elements
                       S[t].y_gt:          indices selected in the ground truth solution
                       S[t].budget:        The budget of for this example
@@ -297,7 +329,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
 
     if len(training_data) ==0:
         raise IOError('No training examples given')
-    # Make a copy of the training samples so that is doesn't shuffle the     input list
+    # Make a copy of the training samples so that is doesn't shuffle the  input list
     training_examples=training_data[:]
 
     ''' Initialize the weights '''
@@ -337,7 +369,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
 
     g_t_old=np.zeros(len(function_list))
     if params.use_ada_grad:
-        historical_grad=np.ones(len(function_list))*fudge_factor
+        historical_grad=np.zeros(len(function_list))
 
     while exitTraining==False:
         
@@ -376,9 +408,11 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
 
         ''' Subgradient '''
         score_t  = utils.evalSubFun(function_list,y_t,False)
-        score_t /= score_t.sum()
         score_gt = utils.evalSubFun(function_list,list(training_examples[t].y_gt),True)
-        score_gt /= score_gt.sum()
+
+        if params.norm_objective_scores:
+            score_t /= score_t.sum()
+            score_gt /= score_gt.sum()
 
 
         if params.use_l1_projection:

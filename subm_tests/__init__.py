@@ -13,7 +13,6 @@ gm_submodular.logger.setLevel('ERROR')
 import pickle
 import sys
 import pystruct.learners
-import subm_tests.test_pystruct as tp
 
 num_iter=10
 
@@ -127,18 +126,22 @@ def getError(weights=[1,0],num_noise_obj=0, gt_variability=0, num_runs=100):
         #sg_ssvm=pystruct.learners.SubgradientSSVM(m,max_iter=num_iter,shuffle=True,averaging='linear')
         #res_ps=sg_ssvm.fit(training_examples,map(lambda x: x.y_gt,training_examples))
 
+        momentum=0.0
+        params_s=gm_submodular.SGDparams(use_l1_projection=False,max_iter=num_iter,use_ada_grad=False,momentum=momentum)
         weights_simple,dummy = gm_submodular.learnSubmodularMixture(training_examples,
                                                                     shells,
                                                                     ex.intersect_complement_loss,
-                                                                    num_iter, use_l1_inequality=False)
+                                                                    params=params_s)
+        params_l1=gm_submodular.SGDparams(use_l1_projection=True,max_iter=num_iter,use_ada_grad=False,momentum=momentum)
         weights_l1,dummy = gm_submodular.learnSubmodularMixture(training_examples,
                                                                 shells,
                                                                 ex.intersect_complement_loss,
-                                                                num_iter, use_l1_inequality=True)
+                                                                params=params_l1)
+        params_adagrad_l1=gm_submodular.SGDparams(use_l1_projection=True,max_iter=num_iter,use_ada_grad=True,momentum=momentum)
         weights_adagrad,dummy = gm_submodular.learnSubmodularMixture(training_examples,
                                                                 shells,
                                                                 ex.intersect_complement_loss,
-                                                                num_iter, use_l1_inequality=True, ada_grad=True)
+                                                                params=params_adagrad_l1)
         weights_adagrad=np.array(weights_adagrad,np.float32)
         weights_adagrad[weights_adagrad<0]=0
         weights_adagrad/=weights_adagrad.sum()
