@@ -17,7 +17,7 @@ If you use this code, please cite: *Gygli, Grabner & Van Gool. Video Summarizati
 ```
 #!python
 cd YourPath
-git clone https://bitbucket.org/gyglim/gm_submodular
+git clone https://github.com/gyglim/gm_submodular.git
 cd gm_submodular
 python setup.py install --user
 
