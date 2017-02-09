@@ -244,7 +244,7 @@ def lazy_greedy_maximize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
             if not skipAssertions:
                 assert marginal_benefits[-1]> -10**-5,'Non monotonic objective'
 
-        # Compute online bound (see [4])
+        # Compute upper bound (see [4])
         if i==0:
             best_sel_indices=np.where(costs[mb_indices].cumsum()<=budget)[0]
             minoux_bound = marginal_benefits[mb_indices][best_sel_indices].sum()
