@@ -230,7 +230,7 @@ def lazy_greedy_maximize(S,w,submod_fun,budget,loss_fun=None,useCost=False,rando
                 t_marg=(np.dot(w,utils.evalSubFun(submod_fun,cand,False,w)) + loss_fun(S,cand) - currScore)
 
             if not skipAssertions:
-                assert marginal_benefits[mb_indices[0]]-t_marg >= max(-10**-5,-10**-8*t_marg), ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
+                assert marginal_benefits[mb_indices[0]]-t_marg >=-10**-5, ('%s: Non-submodular objective at element %d!: Now: %.3f; Before: %.3f' % (type,mb_indices[0],t_marg,marginal_benefits[mb_indices[0]]))
             marginal_benefits[mb_indices[0]]=t_marg
             isUpToDate[mb_indices[0]]=True
 
