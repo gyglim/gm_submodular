@@ -57,8 +57,9 @@ import scipy.linalg
 import gm_submodular.utils
 import time
 from IPython.core.debugger import Tracer
+import sys
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger('gm_submodular')
-logger.setLevel(logging.ERROR)
 skipAssertions=False
 
 
@@ -439,7 +440,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
             else:
                 nu=params.nu
         if np.mod(it,10)==0:
-            logger.info('Nu: %.3f; Gradient: %s; Grad magnitue (abs): %.4f' % (nu, ', '.join(map(str,g_t)),nu*np.sum(np.abs(g_t))))
+            logger.debug('Nu: %.3f; Gradient: %s; Grad magnitue (abs): %.4f' % (nu, ', '.join(map(str,g_t)),nu*np.sum(np.abs(g_t))))
 
         w[it]=w[it]-nu*g_t
 
@@ -488,7 +489,7 @@ def learnSubmodularMixture(training_data, submod_shells, loss_fun, params=None, 
             #w[it][np.isnan(w[it])]=0
 
         if np.mod(it,10)==0:
-            logger.info('w[it]:\t%s' % ', '.join(map(str,w[it])))
+            logger.debug('w[it]:\t%s' % ', '.join(map(str,w[it])))
         it=it+1
         logger.debug(it)
         if it>=len(training_examples)*params.max_iter:

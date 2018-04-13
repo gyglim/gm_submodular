@@ -25,7 +25,7 @@ python setup.py install --user
 
 
 ### Setting started ###
-You can find an example [**here**](http://www.vision.ee.ethz.ch/~gyglim/gm_submodular/gm_submodular_usage.html).
+You can find an example [**here**](gm_submodular_usage.ipynb).
 This shows how to do submodular maximization as well as learning mixtures of objectives from training data.  
 For more information check [[Lin & Bilmes. UAI 2012]](http://arxiv.org/pdf/1210.4871) and [[Gygli et al. CVPR 2015]](http://www.vision.ee.ethz.ch/~gyglim/vsum_struct/GygliCVPR15_vsum_struct.pdf)
 
